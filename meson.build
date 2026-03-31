@@ -39,7 +39,7 @@ ld_script = configure_file(
   configuration: ld_conf,
   )
 
-clk_conf = confguration_data()
+clk_conf = configuration_data()
 clk_conf.set('hse_hz', meson.get_external_property('hse_hz', 0))
 clk_conf.set('hsi_hz', meson.get_external_property('hsi_hz', 0))
 clk_conf.set('lse_hz', meson.get_external_property('lse_hz', 0))

@@ -39,3 +39,8 @@
 
 # debug information files
 *.dwo
+
+subprojects/*
+!subprojects/ut.wrap
+!subprojects/stm32.wrap
+!subprojects/compile-time-init-build.wrap
