@@ -1,0 +1,98 @@
+/* Entry Point */
+ENTRY(_reset)
+
+/* Memory layout (configured by Meson from .ioc file) */
+MEMORY
+{
+  FLASH (rx)  : ORIGIN = @flash_origin@, LENGTH = @flash_kb@K
+  RAM   (xrw) : ORIGIN = @ram_origin@,   LENGTH = @ram_kb@K
+}
+
+/* Top of stack = end of RAM */
+_estack = ORIGIN(RAM) + LENGTH(RAM);
+
+/* Minimum heap and stack sizes (bytes) */
+_Min_Heap_Size  = @heap_size@;
+_Min_Stack_Size = @stack_size@;
+
+SECTIONS
+{
+  /* Interrupt vector table:
+   *   .isr_vector        - ARM core exceptions (startup-stm32.cpp)
+   *   .isr_vector.device - Device-specific IRQs (device BSP) */
+  .isr_vector :
+  {
+    . = ALIGN(4);
+    _sisr_vector = .;
+    KEEP(*(.isr_vector))
+    KEEP(*(.isr_vector.device))
+    . = ALIGN(4);
+    _eisr_vector = .;
+  } >FLASH
+
+  /* Code */
+  .text :
+  {
+    . = ALIGN(4);
+    _stext = .;
+    *(.text)
+    *(.text*)
+    *(.glue_7)
+    *(.glue_7t)
+    *(.eh_frame)
+    KEEP(*(.init))
+    KEEP(*(.fini))
+    . = ALIGN(4);
+    _etext = .;
+  } >FLASH
+
+  /* Read-only data */
+  .rodata :
+  {
+    . = ALIGN(4);
+    _srodata = .;
+    *(.rodata)
+    *(.rodata*)
+    . = ALIGN(4);
+    _erodata = .;
+  } >FLASH
+
+  .data :
+  {
+    . = ALIGN(4);
+    _sdata = .;
+    *(.data)
+    *(.data*)
+    . = ALIGN(4);
+    _edata = .;
+  } >RAM AT>FLASH
+  __data_start_flash = LOADADDR(.data);
+  __data_start_ram = ADDR(.data);
+  __data_size = SIZEOF(.data);
+
+  .bss :
+  {
+    . = ALIGN(4);
+    _sbss = .;
+    __bss_start__ = .;
+    *(.bss)
+    *(.bss*)
+    *(COMMON)
+    . = ALIGN(4);
+    _ebss = .;
+    __bss_end__ = .;
+  } >RAM
+
+  ASSERT(
+    (ORIGIN(RAM) + LENGTH(RAM)) >=
+      (ADDR(._user_heap_stack) + SIZEOF(._user_heap_stack)),
+    "ERROR: Not enough RAM for heap and stack"
+  )
+
+  /* Discard C++ exception-handling tables (cpp_eh=none) */
+  /DISCARD/ :
+  {
+    *(.ARM.exidx*)
+    *(.gnu.linkonce.armexidx.*)
+  }
+}
