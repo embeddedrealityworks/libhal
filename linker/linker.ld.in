@@ -126,14 +126,13 @@ SECTIONS
     "ERROR: Not enough RAM for heap and stack"
   )
 
-  /* ARM unwind index — kept (empty) so libunwind can find __exidx_start/__exidx_end */
-  .ARM.exidx :
+  /* Discard C++ exception-handling tables (cpp_eh=none) */
+  /DISCARD/ :
   {
-    PROVIDE(__exidx_start = .);
     *(.ARM.exidx*)
     *(.gnu.linkonce.armexidx.*)
-    PROVIDE(__exidx_end = .);
-  } >FLASH
+    *(.ARM.extab*)
+  }
 }
 
 /* picolibc-compatible symbols */
@@ -141,3 +140,6 @@ PROVIDE(__stack              = _estack);
 PROVIDE(__heap_start         = end);
 PROVIDE(__heap_end           = _estack - _Min_Stack_Size);
 PROVIDE(__arm32_tls_tcb_offset = 8);
+/* empty ARM unwind range — libunwind never called (cpp_eh=none) */
+__exidx_start = 0;
+__exidx_end   = 0;
