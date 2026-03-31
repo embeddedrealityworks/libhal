@@ -1,0 +1,18 @@
+== Status of hal libraries
+
+* [ ] core
+* [ ] adc
+* [ ] can
+* [ ] dac
+* [ ] dma
+* [ ] flash
+* [ ] gpio
+* [ ] i2c
+* [ ] pwm
+* [ ] pwr
+* [ ] rcc
+* [ ] rtc
+* [ ] spi
+* [ ] usart
+* [ ] usb
+

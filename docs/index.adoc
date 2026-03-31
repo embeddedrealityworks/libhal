@@ -1,0 +1,8 @@
+= HAL Library using Intel Groov and CIB
+:sourcehilighter: rouge
+:rouge-style: base16.solarized
+:source-language: c++
+:toc: left
+
+include::intro.adoc[]
+include::status.adoc[]

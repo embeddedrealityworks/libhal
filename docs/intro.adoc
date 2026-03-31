@@ -1,0 +1,44 @@
+== Introduction
+
+HAL Library
+
+=== Usage
+
+Use as meson subproject.
+
+hal.wrap:
+[source, meson]
+----
+[wrap-git]
+url = https://github.com/embeddedrealityworks/hal.git
+----
+
+In your main meson file:
+
+[source, meson]
+----
+hal_sub = subproject('hal',
+  
+hal_dep = hal_sub.get_variable('hal_dep')
+----
+
+In `+scripts/+` directory we have ioc to meson machine file processor. After running that, you can configure your project
+[source, zsh]
+----
+# ./scripts/ioc-parse.py <input.ioc> mcu_config.txt
+meson setup build --cross-file toolchain.txt --cross-file cortex_m3.txt --cross-file mcu_config.txt
+----
+
+=== Dependencies
+
+- https://github.com/embeddedrealityworks/stm32[STM32 registers]
+- https://github.com/intel/compile-time-init-build[Intel Compile-time Init Build]
+
+From these we get some extra dependencies:
+
+- https://github.com/intel/generic-reister-operation-optimizer[Intel Generic Register Operation Optimizer]
+- https://github.com/intel/cpp-baremetal-concurrency[Intel Baremetal Concurrency]
+- https://github.com/intel/cpp-baremetal-senders-and-receivers[Intel Baremetal Senders and Receivers]
+- https://github.com/fmtlib/fmt[FMT lib]
+- https://github.com/boostorg/mp11[Boost MP11]
+
