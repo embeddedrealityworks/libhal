@@ -89,7 +89,7 @@ subdir('src/startup')  # → startup_src
 
 hal_lib = static_library(
   'hal',
-  startup_src + files('src/semihosting.cpp'),
+  startup_src,
   include_directories: hal_inc,
   dependencies: [stm32_dep, cib_dep],
   )
