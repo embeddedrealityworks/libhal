@@ -1,6 +1,6 @@
 [constants]
 toolchain = '/Users/azo/Toolchains/ATfE-22.1.0-Darwin-arm64'
-sys_root = toolchain / 'lib/clang-runtimes/arm-none-eabi'
+sys_root = toolchain / 'lib/clang-runtimes'
 
 [binaries]
 c = [toolchain / 'bin/clang']

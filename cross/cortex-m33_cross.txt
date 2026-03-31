@@ -4,6 +4,7 @@ common_args = [
     '-mcpu=cortex-m33',
     '-mfpu=fpv5-sp-d16',
     '-mfloat-abi=hard',
+    '--sysroot='+sys_root,
 ]
 link_args = ['-rtlib=compiler-rt', '-stdlib=libc++']
 

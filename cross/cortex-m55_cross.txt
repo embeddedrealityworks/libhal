@@ -3,6 +3,7 @@ common_args = [
     '--target=arm-none-eabi',
     '-mcpu=cortex-m55',
     '-mfloat-abi=hard',
+    '--sysroot='+sys_root,
 ]
 link_args = ['-rtlib=compiler-rt', '-stdlib=libc++']
 
