@@ -42,7 +42,6 @@ if renode_test.found()
       tl + '.cpp',
       dependencies: [ut_dep, hal_dep],
       include_directories: hal_inc,
-      link_args: ['-T' + (meson.build_root() / 'linker.ld')],
     )
 
     resc_conf = configuration_data()
