@@ -1,5 +1,5 @@
 [constants]
-toolchain = '/Users/azo/Toolchains/ATfE-22.0.0-pre-Darwin-arm64'
+toolchain = '/Users/azo/Toolchains/ATfE-22.1.0-Darwin-arm64'
 
 [binaries]
 c = [toolchain / 'bin/clang']

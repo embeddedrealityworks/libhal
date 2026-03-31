@@ -1,0 +1,50 @@
+[properties]
+
+# MCU identity
+mcu_name = 'STM32F103RCTx'
+mcu_family = 'f1'
+mcu_line = 'f103'
+stm32_mcu = 'stm32f103'
+mcu_core = 'cortex-m3'
+mcu_fpu = 'none'
+mcu_package = 'LQFP64'
+
+# Memory layout
+flash_origin = '0x08000000'
+flash_kb = 256
+ram_origin = '0x20000000'
+ram_kb = 20
+heap_size = '0x200'
+stack_size = '0x400'
+
+# Clock tree
+adc_hz = 12000000
+adc_presc = 'RCC_ADCPCLK2_DIV6'
+ahb_hz = 72000000
+apb1_div = 'RCC_HCLK_DIV2'
+apb1_timer_hz = 72000000
+apb2_timer_hz = 72000000
+fclk_hz = 72000000
+hclk_hz = 72000000
+hse_hz = 16000000
+hse_prediv = 'RCC_HSE_PREDIV_DIV2'
+i2_s2_hz = 72000000
+i2_s3_hz = 72000000
+mco_hz = 72000000
+pclk1_hz = 36000000
+pclk2_hz = 72000000
+pll_hz = 72000000
+pll_mul = 'RCC_PLL_MUL9'
+pll_source = 'RCC_PLLSOURCE_HSE'
+pllmco_hz = 36000000
+sdio_hz = 72000000
+sdiohclk_div2_hz = 36000000
+sysclk_hz = 72000000
+sysclk_source = 'RCC_SYSCLKSOURCE_PLLCLK'
+tim_sys_hz = 72000000
+usb_hz = 48000000
+usb_presc = 'RCC_USBCLKSOURCE_PLL_DIV1_5'
+vco_output2_hz = 8000000
+
+# Enabled peripherals
+peripherals = 'adc1,adc3,can,dac,i2c1,spi2,usart3'
