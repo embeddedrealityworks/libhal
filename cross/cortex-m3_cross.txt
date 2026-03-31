@@ -1,5 +1,5 @@
 [constants]
-common_args = ['--target=arm-none-eabi', '-mcpu=cortex-m3']
+common_args = ['--target=arm-none-eabi', '-mcpu=cortex-m3', '--sysroot='+sys_root]
 link_args = ['-rtlib=compiler-rt', '-stdlib=libc++']
 
 [built-in options]

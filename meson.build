@@ -4,6 +4,7 @@ project(
     version: '0.1.0',
     default_options: [
         'cpp_std=c++23',
+        'build.cpp_std=c++23',
         'default_library=static',
         'b_lto=true',
         'cpp_eh=none',

@@ -1,5 +1,6 @@
 [constants]
 toolchain = '/Users/azo/Toolchains/ATfE-22.1.0-Darwin-arm64'
+sys_root = toolchain / 'lib/clang-runtimes/arm-none-eabi'
 
 [binaries]
 c = [toolchain / 'bin/clang']
@@ -18,4 +19,3 @@ readelf = toolchain / 'bin/llvm-readelf'
 
 [properties]
 needs_exe_wrapper = true
-sys_root = toolchain / 'lib/clang-runtimes/arm-none-eabi'
