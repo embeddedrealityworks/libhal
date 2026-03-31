@@ -18,18 +18,18 @@ project(
 
 size = find_program('size')
 ld = find_program('ld')
-cc = find_program('cx')
+cc = find_program('cc')
 cpp = find_program('cpp')
 
 # configs from properties
 
 ld_conf = configuration_data()
-ld_conf.set('flash_origin', meson.get_property('flash_origin'))
-ld_conf.set('flash_kb', meson.get_property('flash_kb'))
-ld_conf.set('ram_origin', meson.get_property('ram_origin'))
-ld_conf.set('ram_kb', meson.get_property('ram_kb'))
-ld_conf.set('heap_size', meson.get_property('heap_size'))
-ld_conf.set('stack_size', meson.get_property('stack_size'))
+ld_conf.set('flash_origin', meson.get_external_property('flash_origin'))
+ld_conf.set('flash_kb', meson.get_external_property('flash_kb'))
+ld_conf.set('ram_origin', meson.get_external_property('ram_origin'))
+ld_conf.set('ram_kb', meson.get_external_property('ram_kb'))
+ld_conf.set('heap_size', meson.get_external_property('heap_size'))
+ld_conf.set('stack_size', meson.get_external_property('stack_size'))
 
 ld_script_in = meson.project_source_root() / 'linker/linker.ld.in'
 
