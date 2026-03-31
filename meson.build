@@ -63,8 +63,10 @@ clk_config = configure_file(
 cib_sub = subproject('compile-time-init-build')
 cib_dep = cib_sub.get_variable('cib_dep')
 
-stm32_sub = subproject('stm32', default_options: ['mcu=@0@'.format(meson.get_external_property('stm32_mcu'))])
+stm32_sub = subproject('stm32')
 stm32_dep = stm32_sub.get_variable('stm32_dep')
+
+hal_inc = include_directories('include')
 
 hal_dep = declare_dependency(
   include_directories: hal_inc,
