@@ -24,6 +24,21 @@ cpp = find_program('cpp')
 
 # configs from properties
 
+renode_conf = configuration_data()
+renode_conf.set('mcu_name',    meson.get_external_property('mcu_name'))
+renode_conf.set('mcu_core',    meson.get_external_property('mcu_core'))
+renode_conf.set('flash_origin', meson.get_external_property('flash_origin'))
+renode_conf.set('flash_bytes',  meson.get_external_property('flash_kb') * 1024)
+renode_conf.set('ram_origin',   meson.get_external_property('ram_origin'))
+renode_conf.set('ram_bytes',    meson.get_external_property('ram_kb') * 1024)
+renode_conf.set('sysclk_hz',    meson.get_external_property('sysclk_hz'))
+
+platform_repl = configure_file(
+  input: 'renode/platform.repl.in',
+  output: meson.get_external_property('mcu_name') + '.repl',
+  configuration: renode_conf,
+  )
+
 ld_conf = configuration_data()
 ld_conf.set('flash_origin', meson.get_external_property('flash_origin'))
 ld_conf.set('flash_kb', meson.get_external_property('flash_kb'))
@@ -69,9 +84,17 @@ stm32_dep = stm32_sub.get_variable('stm32_dep')
 
 hal_inc = include_directories('include')
 
+hal_lib = static_library(
+  'hal',
+  files('src/startup.cpp', 'src/semihosting.cpp'),
+  include_directories: hal_inc,
+  dependencies: [stm32_dep, cib_dep],
+  )
+
 hal_dep = declare_dependency(
   include_directories: hal_inc,
   dependencies: [stm32_dep, cib_dep],
+  link_with: hal_lib,
   link_args: ['-T' + ld_script.full_path()],
   )
 
