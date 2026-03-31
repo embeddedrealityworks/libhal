@@ -1,5 +1,5 @@
 native_tests = ['units']
-target_tests = ['units']
+target_tests = ['t1']
 
 # ── Host tests (fast, no hardware required) ──────────────────────────────────
 
