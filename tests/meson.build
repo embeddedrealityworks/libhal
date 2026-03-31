@@ -36,9 +36,6 @@ if renode_test.found()
   mcu_name  = meson.get_external_property('mcu_name')
   stm32_mcu = meson.get_external_property('stm32_mcu')
 
-  svd_path = meson.project_source_root() / 'subprojects/stm32/svd' /
-             stm32_mcu.to_upper() + '.svd'
-
   foreach tl : target_tests
     target_exe = executable(
       'test_' + tl + '_target',
@@ -51,7 +48,7 @@ if renode_test.found()
     resc_conf = configuration_data()
     resc_conf.set('mcu_name',  mcu_name)
     resc_conf.set('repl_path', platform_repl.full_path())
-    resc_conf.set('svd_path',  svd_path)
+    resc_conf.set('svd_path',  svd_file)
     resc_conf.set('elf_path',  target_exe.full_path())
 
     test_resc = configure_file(

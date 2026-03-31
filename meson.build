@@ -81,6 +81,7 @@ cib_dep = cib_sub.get_variable('cib_dep')
 
 stm32_sub = subproject('stm32')
 stm32_dep = stm32_sub.get_variable('stm32_dep')
+svd_file = stm32_sub.get_variable('svd_file')
 
 hal_inc = include_directories('include')
 
