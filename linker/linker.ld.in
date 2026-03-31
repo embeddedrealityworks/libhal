@@ -46,6 +46,33 @@ SECTIONS
     _etext = .;
   } >FLASH
 
+  /* C++ static constructor / destructor tables */
+  .preinit_array :
+  {
+    . = ALIGN(4);
+    PROVIDE_HIDDEN (__preinit_array_start = .);
+    KEEP(*(.preinit_array*))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+  } >FLASH
+
+  .init_array :
+  {
+    . = ALIGN(4);
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP(*(SORT(.init_array.*)))
+    KEEP(*(.init_array*))
+    PROVIDE_HIDDEN (__init_array_end = .);
+  } >FLASH
+
+  .fini_array :
+  {
+    . = ALIGN(4);
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP(*(SORT(.fini_array.*)))
+    KEEP(*(.fini_array*))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+  } >FLASH
+
   /* Read-only data */
   .rodata :
   {
@@ -81,6 +108,16 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;
     __bss_end__ = .;
+  } >RAM
+
+  /* Reserve space for heap and stack; linker asserts RAM is large enough */
+  ._user_heap_stack :
+  {
+    . = ALIGN(4);
+    PROVIDE ( end = . );
+    . = . + _Min_Heap_Size;
+    . = . + _Min_Stack_Size;
+    . = ALIGN(4);
   } >RAM
 
   ASSERT(
