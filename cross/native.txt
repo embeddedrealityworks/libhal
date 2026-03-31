@@ -1,0 +1,33 @@
+[constants]
+toolchain = '/opt/homebrew/opt/llvm/bin'
+brews = '/opt/homebrew/bin'
+
+[binaries]
+# Compilers
+c = ['ccache',toolchain / 'clang' ]
+cpp = ['ccache',toolchain / 'clang++' ]
+fortran = brews / 'gfortran'
+objc = toolchain / 'clang'
+objcpp = toolchain / 'clang++'
+rust = brews / 'rustc'
+
+# Other binaries
+ar = toolchain / 'llvm-ar'
+as = toolchain / 'llvm-as'
+cmake = brews / 'cmake'
+ld = toolchain / 'ld.lld'
+llvm-config = toolchain / 'llvm-config'
+make = '/usr/bin/make'
+nm = toolchain / 'llvm-nm'
+objdump = toolchain / 'llvm-objdump'
+pkg-config = brews / 'pkg-config'
+qmake = brews / 'qmake'
+ranlib = toolchain / 'llvm-ranlib'
+size = toolchain / 'llvm-size'
+strings = toolchain / 'llvm-strings'
+strip = toolchain / 'llvm-strip'
+
+[built-in options]
+
+[properties]
+

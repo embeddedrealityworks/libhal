@@ -1,0 +1,21 @@
+[constants]
+common_args = [
+    '--target=arm-none-eabi',
+    '-mcpu=cortex-m55',
+    '-mfloat-abi=hard',
+]
+link_args = ['-rtlib=compiler-rt', '-stdlib=libc++']
+
+[built-in options]
+c_args = common_args
+cpp_args = common_args
+c_link_args = common_args + link_args
+cpp_link_args = common_args + link_args
+
+[host_machine]
+cpu = 'cortex-m55'
+cpu_family = 'arm'
+endian = 'little'
+system = 'baremetal'
+subsystem = 'none'
+kernel = 'none'
