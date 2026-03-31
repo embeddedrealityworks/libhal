@@ -6,7 +6,7 @@ common_args = [
     '-mfloat-abi=hard',
     '--sysroot='+sys_root,
 ]
-link_args = ['-rtlib=compiler-rt', '-stdlib=libc++']
+link_args = ['-rtlib=compiler-rt', '-stdlib=libc++', '-nostartfiles', '-lsemihost']
 
 [built-in options]
 c_args = common_args
