@@ -1,4 +1,5 @@
 native_tests = ['units']
+target_tests = ['units']
 
 # ── Host tests (fast, no hardware required) ──────────────────────────────────
 
@@ -23,7 +24,12 @@ endforeach
 #   - renode-test  (ships with Renode, wraps Robot Framework)
 #   - Renode >= 1.14  (cpu EnableSemihosting, SYS_EXIT support)
 
-renode_test = find_program('renode-test', required: false)
+renode_test = find_program(
+  'renode-test',
+  '/Applications/Renode.app/Contents/MacOS/renode-test',
+  required: false,
+  native: true,
+)
 
 if renode_test.found()
 
@@ -33,7 +39,7 @@ if renode_test.found()
   svd_path = meson.project_source_root() / 'subprojects/stm32/svd' /
              stm32_mcu.to_upper() + '.svd'
 
-  foreach tl : native_tests
+  foreach tl : target_tests
     target_exe = executable(
       'test_' + tl + '_target',
       tl + '.cpp',
