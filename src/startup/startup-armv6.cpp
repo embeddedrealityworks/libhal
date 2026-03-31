@@ -14,6 +14,9 @@ extern int main();
 extern "C" void _reset();
 extern "C" void _default();
 
+extern void (*__init_array_start[])();
+extern void (*__init_array_end[])();
+
 // ARMv6-M (Cortex-M0/M0+) core exception handlers.
 // MemManage (4), BusFault (5), UsageFault (6), DebugMon (12) do not
 // exist on ARMv6-M; those vector table slots must be 0.
@@ -55,6 +58,7 @@ extern "C" void _reset() {
             &__data_start_flash + (&_edata - &_sdata),
             &_sdata);
   std::fill(&_sbss, &_ebss, 0u);
+  std::for_each(__init_array_start, __init_array_end, [](auto fn) { fn(); });
 
   main();
 

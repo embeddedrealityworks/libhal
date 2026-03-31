@@ -14,6 +14,9 @@ extern int main();
 extern "C" void _reset();
 extern "C" void _default();
 
+extern void (*__init_array_start[])();
+extern void (*__init_array_end[])();
+
 // ARMv7-M (Cortex-M3/M4/M7) core exception handlers.
 extern "C" void NMI_Handler()
     __attribute__((weak, alias("_default")));
@@ -61,6 +64,7 @@ extern "C" void _reset() {
             &__data_start_flash + (&_edata - &_sdata),
             &_sdata);
   std::fill(&_sbss, &_ebss, 0u);
+  std::for_each(__init_array_start, __init_array_end, [](auto fn) { fn(); });
 
   main();
 

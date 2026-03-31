@@ -14,6 +14,9 @@ extern int main();
 extern "C" void _reset();
 extern "C" void _default();
 
+extern void (*__init_array_start[])();
+extern void (*__init_array_end[])();
+
 // ARMv8-M (Cortex-M33/M55) core exception handlers.
 // SecureFault at position 7 is new vs ARMv7-M (was reserved).
 extern "C" void NMI_Handler()
@@ -64,6 +67,7 @@ extern "C" void _reset() {
             &__data_start_flash + (&_edata - &_sdata),
             &_sdata);
   std::fill(&_sbss, &_ebss, 0u);
+  std::for_each(__init_array_start, __init_array_end, [](auto fn) { fn(); });
 
   main();
 

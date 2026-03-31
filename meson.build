@@ -84,9 +84,11 @@ stm32_dep = stm32_sub.get_variable('stm32_dep')
 
 hal_inc = include_directories('include')
 
+subdir('src/startup')  # → startup_src
+
 hal_lib = static_library(
   'hal',
-  files('src/startup.cpp', 'src/semihosting.cpp'),
+  startup_src + files('src/semihosting.cpp'),
   include_directories: hal_inc,
   dependencies: [stm32_dep, cib_dep],
   )
