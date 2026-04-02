@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # ── Native unit tests ────────────────────────────────────────────────────────
+  native-tests:
+    name: Native tests
+    runs-on: ubuntu-latest
+    container:
+      image: embeddedreality/arm-llvm-toolchain:22
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: |
+          meson setup builddir \
+            --native-file cross/ci-native.txt \
+            --cross-file  cross/ci-cross.txt  \
+            --cross-file  cross/stm32f103.txt  \
+            --cross-file  cross/cortex-m3_cross.txt
+
+      - name: Test
+        run: meson test -C builddir --print-errorlogs
+
+  # ── Cross-compilation check (one job per Cortex-M target) ───────────────────
+  cross-build:
+    name: Cross-build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    container:
+      image: embeddedreality/arm-llvm-toolchain:22
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - cortex-m0plus
+          - cortex-m3
+          - cortex-m4
+          - cortex-m7
+          - cortex-m33
+          - cortex-m55
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: |
+          meson setup builddir \
+            --native-file cross/ci-native.txt \
+            --cross-file  cross/ci-cross.txt  \
+            --cross-file  cross/stm32f103.txt  \
+            --cross-file  cross/${{ matrix.target }}_cross.txt
+
+      - name: Build
+        run: meson compile -C builddir
