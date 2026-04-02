@@ -1,0 +1,21 @@
+[constants]
+toolchain = '/opt/toolchain'
+sys_root = toolchain / 'lib/clang-runtimes'
+
+[binaries]
+c = [toolchain / 'bin/clang']
+cpp = [toolchain / 'bin/clang++']
+ld = toolchain / 'bin/ld.lld'
+ar = toolchain / 'bin/llvm-ar'
+as = toolchain / 'bin/llvm-as'
+size = toolchain / 'bin/llvm-size'
+objdump = toolchain / 'bin/llvm-objdump'
+objcopy = toolchain / 'bin/llvm-objcopy'
+strip = toolchain / 'bin/llvm-strip'
+ranlib = toolchain / 'bin/llvm-ranlib'
+nm = toolchain / 'bin/llvm-nm'
+addr2line = toolchain / 'bin/llvm-addr2line'
+readelf = toolchain / 'bin/llvm-readelf'
+
+[properties]
+needs_exe_wrapper = true

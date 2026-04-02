@@ -1,0 +1,15 @@
+[binaries]
+# Compilers
+c = ['clang-22']
+cpp = ['clang++-22']
+ar = 'llvm-ar-22'
+as = 'llvm-as-22'
+cmake = 'cmake'
+ld = 'ld.lld-22'
+llvm-config = 'llvm-config-22'
+nm = 'llvm-nm-22'
+objdump = 'llvm-objdump-22'
+ranlib = 'llvm-ranlib-22'
+size = 'llvm-size-22'
+strings = 'llvm-strings-22'
+strip = 'llvm-strip-22'
