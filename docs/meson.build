@@ -68,4 +68,4 @@ else
   message('Asciidoctor not found, documentation will not be built')
 endif
 
-run_target('dosc', command: ['echo', 'Built docs'], depends: alldocs)
+run_target('docs', command: ['echo', 'Built docs'], depends: alldocs)

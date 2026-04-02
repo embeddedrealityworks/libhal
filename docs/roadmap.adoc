@@ -1,0 +1,476 @@
+== Implementation Roadmap
+
+This document describes the architectural patterns and implementation order for
+libhal peripherals and device drivers.
+
+=== Core Patterns
+
+==== CRTP with C++23 Deduced `this`
+
+All peripheral interfaces use CRTP for zero-overhead static polymorphism.
+The C++23 _deduced `this`_ feature (`this auto& self`) eliminates the classic
+CRTP boilerplate of `static_cast<Derived&>(*this)`.
+
+The ADC peripheral (`include/libhal/peripherals/adc.hpp`) is the reference
+implementation. Every new peripheral follows the same structure:
+
+[source,cpp]
+----
+// include/libhal/peripherals/gpio.hpp
+namespace hal {
+
+// Tag types for pin configuration (same idiom as adc16_t / adc24_t)
+struct input_t  {};
+struct output_t {};
+inline constexpr input_t  input{};
+inline constexpr output_t output{};
+
+/// CRTP base for GPIO pins.
+///
+/// @tparam Derived - the concrete GPIO driver (MCU pin or expander channel)
+/// @tparam Dir     - input_t or output_t (direction enforced at compile time)
+template<typename Derived, typename Dir>
+class gpio {
+public:
+  /// Read the logical level of the pin.
+  /// Available for both input_t and output_t (read-back).
+  [[nodiscard]] bool read(this auto& self) {
+    return self.read_impl();
+  }
+
+  /// Drive the pin high. Only available when Dir == output_t.
+  void set(this auto& self)
+    requires std::is_same_v<Dir, output_t>
+  {
+    self.set_impl();
+  }
+
+  /// Drive the pin low. Only available when Dir == output_t.
+  void clear(this auto& self)
+    requires std::is_same_v<Dir, output_t>
+  {
+    self.clear_impl();
+  }
+
+  /// Toggle the pin. Only available when Dir == output_t.
+  void toggle(this auto& self)
+    requires std::is_same_v<Dir, output_t>
+  {
+    self.toggle_impl();
+  }
+
+protected:
+  gpio()  = default;
+  ~gpio() = default;
+};
+
+} // namespace hal
+----
+
+Rules that apply to every peripheral base:
+
+* The base class destructor and constructor are `protected` — the base is never
+  instantiated directly.
+* Every public method uses `this auto& self` instead of `static_cast`.
+* Tag types (e.g. `input_t`) drive `requires` constraints so misuse is a
+  compile error, not a runtime fault.
+* No virtual functions, no RTTI, no exceptions.
+
+==== GROOV Integration for Peripherals
+
+Peripheral implementations wrap GROOV register groups (generated from SVD via
+`svd2groov`).  The MCU-specific peripheral instance is a `constexpr` value
+defined in the MCU header.  The hal peripheral class holds a copy of that
+instance as a `static constexpr` member so register access is a compile-time
+constant address — the compiler can inline every field read/write.
+
+[source,cpp]
+----
+// include/mcu/stm32f4/gpio.hpp
+#include <libhal/peripherals/gpio.hpp>
+#include <stm32/stm32f437/registers/gpio.hpp>
+
+namespace hal::stm32f4 {
+
+/// MCU GPIO implementation for a single STM32F4 pin.
+///
+/// @tparam Pin  - a GROOV gpio peripheral instance (constexpr value from
+///                stm32f437.hpp, e.g. mcu::stm32::gpioa)
+/// @tparam N    - pin number 0–15
+/// @tparam Dir  - hal::input_t or hal::output_t
+template<auto Pin, unsigned N, typename Dir>
+class gpio : public hal::gpio<gpio<Pin, N, Dir>, Dir> {
+  friend class hal::gpio<gpio<Pin, N, Dir>, Dir>;
+
+  bool read_impl() const {
+    // GROOV read: returns field value at compile-time-known address
+    return groov::read(Pin.idr / groov::field_v<"idr" + N>);
+  }
+
+  void set_impl() {
+    groov::write(Pin.bsrr / groov::field_v<"bs" + N>, true);
+  }
+
+  void clear_impl() {
+    groov::write(Pin.bsrr / groov::field_v<"br" + N>, true);
+  }
+
+  void toggle_impl() {
+    groov::apply(Pin.odr / groov::field_v<"od" + N>,
+                 [](bool v){ return !v; });
+  }
+};
+
+} // namespace hal::stm32f4
+----
+
+=== IOPin Abstraction
+
+An _IOPin_ is anything that satisfies the `hal::gpio<Derived, output_t>`
+interface.  It makes no difference to a device driver whether the pin is driven
+by an on-chip GPIO or an expander chip over I²C/SPI.
+
+Concrete IOPin types:
+
+|===
+| Type | Header | Notes
+
+| `hal::stm32f4::gpio<Pin, N, output_t>`
+| `include/mcu/stm32f4/gpio.hpp`
+| On-chip STM32F4 pin via GROOV registers
+
+| `hal::pca9555::pin<Bus, Addr, N, output_t>`
+| `include/libhal/devices/pca9555.hpp`
+| Channel of a PCA9555 I²C GPIO expander
+
+|===
+
+The device driver only requires a type that satisfies the `gpio<..., output_t>`
+concept — it does not know or care which concrete type it receives.
+
+[source,cpp]
+----
+// Chip-select as an IOPin concept
+template<typename T>
+concept iopin_output = requires(T pin) {
+  pin.set();
+  pin.clear();
+  pin.toggle();
+};
+----
+
+=== GROOV Bus Abstraction
+
+Devices communicate over a _bus_ — SPI, I²C, etc.  The bus is exposed through
+a thin CRTP wrapper around the MCU peripheral GROOV instance, following the
+same pattern as GPIO.
+
+[source,cpp]
+----
+// include/libhal/peripherals/spi.hpp
+namespace hal {
+
+template<typename Derived>
+class spi {
+public:
+  /// Blocking full-duplex transfer.
+  /// tx and rx may alias (in-place transfer).
+  void transfer(this auto& self,
+                std::span<const std::byte> tx,
+                std::span<std::byte>       rx)
+  {
+    self.transfer_impl(tx, rx);
+  }
+
+protected:
+  spi()  = default;
+  ~spi() = default;
+};
+
+} // namespace hal
+----
+
+[source,cpp]
+----
+// include/libhal/peripherals/i2c.hpp
+namespace hal {
+
+template<typename Derived>
+class i2c {
+public:
+  void write(this auto& self,
+             std::uint8_t             addr,
+             std::span<const std::byte> data)
+  {
+    self.write_impl(addr, data);
+  }
+
+  void read(this auto& self,
+            std::uint8_t       addr,
+            std::span<std::byte> data)
+  {
+    self.read_impl(addr, data);
+  }
+
+protected:
+  i2c()  = default;
+  ~i2c() = default;
+};
+
+} // namespace hal
+----
+
+MCU SPI/I²C implementations follow the same pattern as GPIO, wrapping the
+GROOV register instance:
+
+[source,cpp]
+----
+// include/mcu/stm32f4/spi.hpp
+template<auto SpiInstance>
+class spi : public hal::spi<spi<SpiInstance>> {
+  friend class hal::spi<spi<SpiInstance>>;
+
+  void transfer_impl(std::span<const std::byte> tx,
+                     std::span<std::byte>       rx);
+  // ... drives SpiInstance.dr / SpiInstance.sr via GROOV
+};
+----
+
+=== Device Driver Pattern
+
+A device driver is parameterized on its bus and, where needed, one or more
+IOPin types.  It does not inherit from the bus or IOPin; it _holds_ them by
+value (they are zero-size types when backed by GROOV constants).
+
+Device-side virtual registers (e.g. the MCP4821 output register) are also
+modelled with GROOV so that the optimizer can batch field writes into a single
+SPI frame.
+
+[source,cpp]
+----
+// include/libhal/devices/mcp4821.hpp
+#include <libhal/peripherals/spi.hpp>
+#include <groov/groov.hpp>
+
+namespace hal {
+
+/// MCP4821 12-bit SPI DAC driver.
+///
+/// @tparam SpiBus - a type satisfying hal::spi (e.g. hal::stm32f4::spi<spi1>)
+/// @tparam CsPin  - a type satisfying iopin_output (MCU GPIO or expander pin)
+template<typename SpiBus, typename CsPin>
+class mcp4821 : public hal::dac<mcp4821<SpiBus, CsPin>, hal::dac12_t> {
+  friend class hal::dac<mcp4821<SpiBus, CsPin>, hal::dac12_t>;
+
+  // GROOV virtual register: models the 16-bit MCP4821 write command word.
+  // The physical "address" is meaningless for SPI devices; it is used as an
+  // index into the frame buffer held by the transfer helper.
+  using cmd_reg = groov::reg<"mcp4821_cmd", std::uint16_t, 0x0000,
+    common::access::wo,
+    groov::field<"!a/b", bool,         15, 15>,  // channel select (A=0)
+    groov::field<"buf",  bool,         14, 14>,  // output buffer enable
+    groov::field<"!ga",  bool,         13, 13>,  // gain (1x=1)
+    groov::field<"!shdn",bool,         12, 12>,  // output shutdown (active=1)
+    groov::field<"data", std::uint16_t,11,  0>   // 12-bit DAC value
+  >;
+
+  void write_impl(u16 value) {
+    // Build frame using GROOV field writes — optimizer collapses to one store
+    auto frame = groov::make_write(cmd_reg{} / "!a/b"_f = false,
+                                   cmd_reg{} / "buf"_f   = false,
+                                   cmd_reg{} / "!ga"_f   = true,
+                                   cmd_reg{} / "!shdn"_f = true,
+                                   cmd_reg{} / "data"_f  = value);
+
+    auto bytes = std::as_bytes(std::span{&frame, 1});
+    cs_.clear();
+    bus_.transfer(bytes, {});
+    cs_.set();
+  }
+
+  SpiBus bus_;
+  CsPin  cs_;
+};
+
+} // namespace hal
+----
+
+=== PCA9555 GPIO Expander
+
+The PCA9555 is itself a device (I²C bus + optional INT IOPin) _and_ a source
+of IOPin instances (its 16 output channels).
+
+[source,cpp]
+----
+// include/libhal/devices/pca9555.hpp
+namespace hal {
+
+/// PCA9555 16-bit I²C GPIO expander.
+///
+/// @tparam I2cBus - satisfies hal::i2c
+/// @tparam Addr   - 7-bit I²C address (compile-time constant)
+template<typename I2cBus, std::uint8_t Addr>
+class pca9555 {
+public:
+  /// Returns a proxy object that satisfies iopin_output for channel N.
+  template<unsigned N, typename Dir>
+  auto pin() {
+    return pca9555_pin<pca9555, N, Dir>{*this};
+  }
+
+private:
+  // GROOV virtual register map for the PCA9555 register file.
+  // Physical addresses are the PCA9555 command bytes sent over I²C.
+  using config_reg = groov::reg<"pca9555_cfg", std::uint16_t, 0x06,
+    common::access::rw,
+    groov::field<"port1", std::uint8_t, 15, 8>,
+    groov::field<"port0", std::uint8_t,  7, 0>>;
+
+  using output_reg = groov::reg<"pca9555_out", std::uint16_t, 0x02,
+    common::access::rw,
+    groov::field<"port1", std::uint8_t, 15, 8>,
+    groov::field<"port0", std::uint8_t,  7, 0>>;
+
+  I2cBus bus_;
+  std::uint16_t shadow_output_{0xFFFF}; // last written output state
+};
+
+/// Proxy IOPin for a single PCA9555 channel.
+/// Satisfies hal::gpio<..., output_t>.
+template<typename Expander, unsigned N, typename Dir>
+class pca9555_pin
+    : public hal::gpio<pca9555_pin<Expander, N, Dir>, Dir> {
+  friend class hal::gpio<pca9555_pin<Expander, N, Dir>, Dir>;
+
+  void set_impl()    { expander_.set_bit(N); }
+  void clear_impl()  { expander_.clear_bit(N); }
+  void toggle_impl() { expander_.toggle_bit(N); }
+  bool read_impl()   { return expander_.read_bit(N); }
+
+  Expander& expander_;
+};
+
+} // namespace hal
+----
+
+=== Peripheral Implementation Order
+
+The recommended sequence — each item depends on those above it.
+
+. *RCC / Clock* (`include/mcu/stm32f4/rcc.hpp`)
+  - Configure PLL, bus prescalers
+  - Expose `enable_clock<Peripheral>()` using CIB for compile-time dependency
+    tracking
+
+. *GPIO* (`include/mcu/stm32f4/gpio.hpp`)
+  - Implement `hal::gpio` CRTP base
+  - Depends on RCC (clock enable)
+
+. *SPI* (`include/mcu/stm32f4/spi.hpp`)
+  - Implement `hal::spi` CRTP base (polling, then DMA)
+  - Depends on GPIO (SCK/MOSI/MISO alternate-function pins), RCC
+
+. *I2C* (`include/mcu/stm32f4/i2c.hpp`)
+  - Implement `hal::i2c` CRTP base
+  - Depends on GPIO (SCL/SDA open-drain), RCC
+
+. *USART* (`include/mcu/stm32f4/usart.hpp`)
+  - Implement `hal::usart` CRTP base
+  - Depends on GPIO, RCC
+
+. *Timer / PWM* (`include/mcu/stm32f4/timer.hpp`)
+  - Implement `hal::timer` and `hal::pwm` CRTP bases
+  - Depends on GPIO (alternate function), RCC
+
+. *ADC* (`include/mcu/stm32f4/adc.hpp`)
+  - Implement concrete ADC driver inheriting `hal::adc<..., adc12_t>`
+  - Depends on GPIO (analog mode), RCC
+
+. *DAC* (`include/mcu/stm32f4/dac.hpp`)
+  - Implement concrete DAC driver
+  - Depends on GPIO (analog mode), RCC
+
+=== Device Driver Implementation Order
+
+. *IOPin concept and test* — verify an MCU GPIO satisfies `iopin_output`
+. *PCA9555* — validates the I²C bus and the IOPin-from-expander pattern
+. *MCP4821* — validates the SPI bus and the chip-select IOPin pattern
+. *Further DAC / ADC devices* — straightforward once the above compile
+
+=== Wiring Everything Together (Usage Example)
+
+[source,cpp]
+----
+#include <stm32/stm32f437/stm32f437.hpp>
+#include <mcu/stm32f4/rcc.hpp>
+#include <mcu/stm32f4/gpio.hpp>
+#include <mcu/stm32f4/spi.hpp>
+#include <mcu/stm32f4/i2c.hpp>
+#include <libhal/devices/mcp4821.hpp>
+#include <libhal/devices/pca9555.hpp>
+
+// ── MCU peripheral instances (compile-time constants from GROOV SVD output) ──
+using namespace mcu::stm32;
+
+// SPI1 bus driver
+using spi1_drv = hal::stm32f4::spi<spi1>;
+
+// PA4 as chip-select output for MCP4821
+using cs_pin = hal::stm32f4::gpio<gpioa, 4, hal::output_t>;
+
+// MCP4821 DAC: SPI1 + PA4 chip select
+using dac = hal::mcp4821<spi1_drv, cs_pin>;
+
+// I2C1 bus driver
+using i2c1_drv = hal::stm32f4::i2c<i2c1>;
+
+// PCA9555 at address 0x20
+using expander = hal::pca9555<i2c1_drv, 0x20>;
+
+// Channel 3 of the expander as an output IOPin
+using exp_out = decltype(std::declval<expander>().pin<3, hal::output_t>());
+
+int main() {
+  // All configuration is compile-time; no dynamic dispatch.
+  dac my_dac{};
+  my_dac.write(2048_u16); // 12-bit mid-scale
+
+  expander io{};
+  auto led = io.pin<3, hal::output_t>();
+  led.set();
+}
+----
+
+=== MCU Family Directory Layout
+
+Each supported MCU family gets its own subdirectory under `include/mcu/`.
+
+----
+include/mcu/
+└── stm32f4/
+    ├── rcc.hpp      ← clock enable, PLL configuration
+    ├── gpio.hpp     ← hal::stm32f4::gpio<Pin, N, Dir>
+    ├── spi.hpp      ← hal::stm32f4::spi<SpiInstance>
+    ├── i2c.hpp      ← hal::stm32f4::i2c<I2cInstance>
+    ├── usart.hpp    ← hal::stm32f4::usart<UsartInstance>
+    ├── timer.hpp    ← hal::stm32f4::timer<TimerInstance>
+    ├── adc.hpp      ← hal::stm32f4::adc<AdcInstance, Channel, BitWidth>
+    └── dac.hpp      ← hal::stm32f4::dac<DacInstance, Channel>
+----
+
+The register definitions (GROOV register groups) live in the `stm32` subproject
+and are auto-generated from SVD.  MCU headers in `include/mcu/` import those
+definitions and implement the `hal::*` CRTP bases on top of them.
+
+=== Key Invariants
+
+* *No runtime dispatch* — no `virtual`, no function pointers in hot paths.
+* *Zero-size bus/pin objects* — GROOV peripheral instances are `constexpr`;
+  device objects have zero runtime footprint when all configuration is fixed.
+* *GROOV for every register* — both MCU registers (from SVD) and device
+  command words (virtual registers) use GROOV field descriptions.  This lets
+  the compiler batch independent field writes and prune dead reads.
+* *IOPin is a concept, not a base class* — anything with `set()`, `clear()`,
+  `toggle()` qualifies; the MCU GPIO and expander pin are interchangeable.
+* *C++23 required* — deduced `this`, `requires` clauses on member functions,
+  and `consteval` literals are all used; set `-std=c++23` in the cross-file.
