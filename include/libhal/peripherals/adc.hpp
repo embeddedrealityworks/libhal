@@ -1,13 +1,15 @@
 #pragma once
 
-#include "units.hpp"
+#include <type_traits>
+
+#include <libhal/utils/units.hpp>
 
 namespace hal {
+using namespace hal::units;
 
-/// Bit-width tag types for ADC resolution selection
-struct adc16_t {};
-struct adc24_t {};
-struct adc32_t {};
+struct adc16_t {};  ///< Tag type selecting 16-bit ADC resolution.
+struct adc24_t {};  ///< Tag type selecting 24-bit ADC resolution.
+struct adc32_t {};  ///< Tag type selecting 32-bit ADC resolution.
 
 inline constexpr adc16_t adc16{};
 inline constexpr adc24_t adc24{};
@@ -33,16 +35,21 @@ struct adc_sample_type<adc32_t> {
 };
 } // namespace detail
 
-/// CRTP base for ADC interfaces parameterized by bit-width.
-///
-/// @tparam Derived  - the concrete ADC driver type
-/// @tparam BitWidth - one of adc16_t, adc24_t, adc32_t
-///
-/// Usage:
-///   class my_adc : public hal::adc<my_adc, hal::adc16_t> {
-///     friend class hal::adc<my_adc, hal::adc16_t>;
-///     u16 read_impl() { ... }
-///   };
+/**
+ * @brief CRTP base for ADC interfaces parameterized by bit-width.
+ *
+ * @tparam Derived  The concrete ADC driver type.
+ * @tparam BitWidth Resolution tag: one of @ref adc16_t, @ref adc24_t,
+ *                  @ref adc32_t.
+ *
+ * @par Usage
+ * @code{.cpp}
+ * class my_adc : public hal::adc<my_adc, hal::adc16_t> {
+ *   friend class hal::adc<my_adc, hal::adc16_t>;
+ *   u16 read_impl() { ... }
+ * };
+ * @endcode
+ */
 template<typename Derived, typename BitWidth>
 class adc {
 public:
@@ -55,7 +62,8 @@ public:
     else return 32u;
   }();
 
-  /// Read a raw sample from the ADC.
+  /// @brief Read a raw sample from the ADC.
+  /// @return Raw sample in the range [0, 2^bit_depth - 1].
   [[nodiscard]] sample_type read(this auto& self) {
     return self.read_impl();
   }
