@@ -22,23 +22,6 @@ ld = find_program('ld')
 cc = find_program('cc')
 cpp = find_program('cpp')
 
-# configs from properties
-
-renode_conf = configuration_data()
-renode_conf.set('mcu_name',    meson.get_external_property('mcu_name'))
-renode_conf.set('mcu_core',    meson.get_external_property('mcu_core'))
-renode_conf.set('flash_origin', meson.get_external_property('flash_origin'))
-renode_conf.set('flash_bytes',  meson.get_external_property('flash_kb') * 1024)
-renode_conf.set('ram_origin',   meson.get_external_property('ram_origin'))
-renode_conf.set('ram_bytes',    meson.get_external_property('ram_kb') * 1024)
-renode_conf.set('sysclk_hz',    meson.get_external_property('sysclk_hz'))
-
-platform_repl = configure_file(
-  input: 'renode/platform.repl.in',
-  output: meson.get_external_property('mcu_name') + '.repl',
-  configuration: renode_conf,
-  )
-
 ld_conf = configuration_data()
 ld_conf.set('flash_origin', meson.get_external_property('flash_origin'))
 ld_conf.set('flash_kb', meson.get_external_property('flash_kb'))
@@ -76,12 +59,17 @@ clk_config = configure_file(
 
 
 # dependencies
-cib_sub = subproject('compile-time-init-build')
-cib_dep = cib_sub.get_variable('cib_dep')
+
+stdx_sub = subproject('cpp-std-extensions')
+stdx_dep = stdx_sub.get_variable('stdx_dep')
 
 stm32_sub = subproject('stm32')
 stm32_dep = stm32_sub.get_variable('stm32_dep')
-svd_file = stm32_sub.get_variable('svd_file')
+
+cib_sub = subproject('compile-time-init-build')
+cib_dep = cib_sub.get_variable('cib_dep')
+
+# include dir
 
 hal_inc = include_directories('include')
 
