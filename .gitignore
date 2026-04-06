@@ -44,3 +44,4 @@ subprojects/*
 !subprojects/ut.wrap
 !subprojects/stm32.wrap
 !subprojects/compile-time-init-build.wrap
+!subprojects/cpp-std-extensions.wrap
