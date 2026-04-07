@@ -87,7 +87,10 @@ using cf1_ = groov::reg<"cf1", std::uint8_t, 0x07, hal::access::rw,
 
 template <auto& i2cp, std::uint8_t address>
 using pca9555_t = groov::group<"pca9555", hal::i2cbus<address, i2cp>,
-                               ip0_, ip1_, op0_, op1_, pi0_, pi1_, cf0_, cf1_>;
+                               pca9555::regs::ip0_, pca9555::regs::ip1_,
+                               pca9555::regs::op0_, pca9555::regs::op1_,
+                               pca9555::regs::pi0_, pca9555::regs::pi1_,
+                               pca9555::regs::cf0_, pca9555::regs::cf1_>;
 
 // instantiate device with for example
 // constexpr auto ioexpander = pca9555_t<i2c1,0x24>{};
