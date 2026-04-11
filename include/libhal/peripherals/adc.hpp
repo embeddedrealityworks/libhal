@@ -1,11 +1,17 @@
 #pragma once
 
+#include <concepts>
+#include <cstdint>
 #include <type_traits>
 
 #include <libhal/utils/units.hpp>
 
 namespace hal {
 using namespace hal::units;
+
+// ---------------------------------------------------------------------------
+// Resolution tag types
+// ---------------------------------------------------------------------------
 
 struct adc16_t {};  ///< Tag type selecting 16-bit ADC resolution.
 struct adc24_t {};  ///< Tag type selecting 24-bit ADC resolution.
@@ -15,62 +21,47 @@ inline constexpr adc16_t adc16{};
 inline constexpr adc24_t adc24{};
 inline constexpr adc32_t adc32{};
 
+// ---------------------------------------------------------------------------
+// Sample-type mapping (kept for use by bus-manager implementations)
+// ---------------------------------------------------------------------------
+
 namespace detail {
+
+template<typename BitWidth> struct adc_sample_type;
+template<> struct adc_sample_type<adc16_t> { using type = u16; };
+template<> struct adc_sample_type<adc24_t> { using type = u32; };  ///< 24-bit packed into 32-bit
+template<> struct adc_sample_type<adc32_t> { using type = u32; };
+
+/// @brief Compile-time bit-depth for an ADC resolution tag.
 template<typename BitWidth>
-struct adc_sample_type;
+inline constexpr unsigned adc_bit_depth =
+    std::is_same_v<BitWidth, adc16_t> ? 16u :
+    std::is_same_v<BitWidth, adc24_t> ? 24u : 32u;
 
-template<>
-struct adc_sample_type<adc16_t> {
-  using type = u16;
-};
-
-template<>
-struct adc_sample_type<adc24_t> {
-  using type = u32; // 24-bit packed into 32-bit
-};
-
-template<>
-struct adc_sample_type<adc32_t> {
-  using type = u32;
-};
 } // namespace detail
 
+// ---------------------------------------------------------------------------
+// Concept
+// ---------------------------------------------------------------------------
+
 /**
- * @brief CRTP base for ADC interfaces parameterized by bit-width.
+ * @brief Concept for an ADC channel driver.
  *
- * @tparam Derived  The concrete ADC driver type.
- * @tparam BitWidth Resolution tag: one of @ref adc16_t, @ref adc24_t,
- *                  @ref adc32_t.
+ * A conforming type must expose a @c read() member returning a raw integer
+ * sample.  The resolution (16 / 24 / 32-bit) is encoded by the @ref adc16_t,
+ * @ref adc24_t, or @ref adc32_t tag type passed to the concrete driver.
  *
- * @par Usage
+ * @par Example
  * @code{.cpp}
- * class my_adc : public hal::adc<my_adc, hal::adc16_t> {
- *   friend class hal::adc<my_adc, hal::adc16_t>;
- *   u16 read_impl() { ... }
- * };
+ * template <hal::adc_channel Adc>
+ * voltage to_voltage(Adc& adc, voltage vref) {
+ *     return vref * adc.read() / 65535.0f;
+ * }
  * @endcode
  */
-template<typename Derived, typename BitWidth>
-class adc {
-public:
-  using sample_type = typename detail::adc_sample_type<BitWidth>::type;
-  using bit_width   = BitWidth;
-
-  static constexpr unsigned bit_depth = [] {
-    if constexpr (std::is_same_v<BitWidth, adc16_t>) return 16u;
-    else if constexpr (std::is_same_v<BitWidth, adc24_t>) return 24u;
-    else return 32u;
-  }();
-
-  /// @brief Read a raw sample from the ADC.
-  /// @return Raw sample in the range [0, 2^bit_depth - 1].
-  [[nodiscard]] sample_type read(this auto& self) {
-    return self.read_impl();
-  }
-
-protected:
-  adc()  = default;
-  ~adc() = default;
+template <typename T>
+concept adc_channel = requires(T t) {
+    { t.read() };
 };
 
 } // namespace hal

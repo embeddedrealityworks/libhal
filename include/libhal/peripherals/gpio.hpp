@@ -1,9 +1,8 @@
 #pragma once
 
-#include <libhal/utils/units.hpp>
+#include <concepts>
 
 namespace hal {
-using namespace hal::units;
 
 // ---------------------------------------------------------------------------
 // Direction tag types
@@ -37,68 +36,35 @@ struct open_drain_t {};  ///< Tag type selecting open-drain output drive.
 inline constexpr push_pull_t  push_pull{};
 inline constexpr open_drain_t open_drain{};
 
+// ---------------------------------------------------------------------------
+// Concepts
+// ---------------------------------------------------------------------------
+
 /**
- * @brief CRTP base for GPIO pins.
+ * @brief Concept for a readable digital input pin.
  *
- * @tparam Derived Concrete GPIO driver (MCU pin or expander channel).
- * @tparam Dir     Pin direction: @ref input_t or @ref output_t; enforced at
- *                 compile time via @c requires clauses.
- *
- * @par Usage (output)
- * @code{.cpp}
- * class my_pin : public hal::gpio<my_pin, hal::output_t> {
- *   friend class hal::gpio<my_pin, hal::output_t>;
- *   void set_impl()    { ... } // drive high
- *   void clear_impl()  { ... } // drive low
- *   void toggle_impl() { ... } // invert
- *   bool read_impl()   { ... } // read IDR
- * };
- * @endcode
- *
- * @par Usage (input)
- * @code{.cpp}
- * class my_pin : public hal::gpio<my_pin, hal::input_t> {
- *   friend class hal::gpio<my_pin, hal::input_t>;
- *   bool read_impl() { ... } // read IDR
- * };
- * @endcode
+ * Satisfied by any type that exposes a @c read() member returning a value
+ * convertible to @c bool.  This includes MCU GPIO inputs, expander pins
+ * (@c hal::devices::iopin), and software-simulated pins.
  */
-template<typename Derived, typename Dir>
-class gpio {
-public:
-  /// @brief Drive the pin high.
-  /// @note Only available for @ref output_t pins.
-  void set(this auto& self)
-    requires std::is_same_v<Dir, output_t>
-  {
-    self.set_impl();
-  }
+template <typename T>
+concept gpio_input = requires(T t) {
+    { t.read() } -> std::convertible_to<bool>;
+};
 
-  /// @brief Drive the pin low.
-  /// @note Only available for @ref output_t pins.
-  void clear(this auto& self)
-    requires std::is_same_v<Dir, output_t>
-  {
-    self.clear_impl();
-  }
-
-  /// @brief Toggle the pin level.
-  /// @note Only available for @ref output_t pins.
-  void toggle(this auto& self)
-    requires std::is_same_v<Dir, output_t>
-  {
-    self.toggle_impl();
-  }
-
-  /// @brief Read the logical level of the pin (available for both directions).
-  /// @return @c true if the pin is high, @c false if low.
-  [[nodiscard]] bool read(this auto& self) {
-    return self.read_impl();
-  }
-
-protected:
-  gpio()  = default;
-  ~gpio() = default;
+/**
+ * @brief Concept for a driveable digital output pin.
+ *
+ * Satisfied by any type that exposes @c set(), @c clear(), @c toggle(), and
+ * @c read() members.  @c read() reflects the current driven value (IDR or
+ * the output latch, depending on the implementation).
+ */
+template <typename T>
+concept gpio_output = requires(T t) {
+    t.set();
+    t.clear();
+    t.toggle();
+    { t.read() } -> std::convertible_to<bool>;
 };
 
 } // namespace hal

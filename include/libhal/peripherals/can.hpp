@@ -1,7 +1,6 @@
 #pragma once
 
-#include <array>
-#include <cstddef>
+#include <concepts>
 #include <cstdint>
 
 #include <libhal/utils/units.hpp>
@@ -9,67 +8,58 @@
 namespace hal {
 using namespace hal::units;
 
+// ---------------------------------------------------------------------------
+// CAN frame definition
+// ---------------------------------------------------------------------------
+
 /// @brief Maximum data length for a CAN classic frame (bytes).
 inline constexpr unsigned can_max_dlc = 8u;
 
-/// @brief A single CAN 2.0A/B frame.
+/**
+ * @brief A single CAN 2.0A/B data frame.
+ *
+ * Supports both standard (11-bit) and extended (29-bit) identifiers.
+ * Set @c extended = @c true for 29-bit IDs; the @c id field is interpreted
+ * accordingly by the driver.
+ */
 struct can_frame {
-  u32  id       : 29;  ///< 11-bit (standard) or 29-bit (extended) identifier.
-  u8   dlc      : 4;   ///< Data length code (0–8 bytes).
-  bool extended : 1;   ///< @c true for 29-bit extended ID.
-  bool rtr      : 1;   ///< @c true for remote transmission request.
-  u8   data[can_max_dlc];  ///< Payload bytes.
+    u32  id       : 29;          ///< 11-bit (standard) or 29-bit (extended) identifier.
+    u8   dlc      :  4;          ///< Data length code — number of valid payload bytes (0–8).
+    bool extended :  1;          ///< @c true for 29-bit extended ID; @c false for 11-bit.
+    bool rtr      :  1;          ///< @c true for remote transmission request frame.
+    u8   data[can_max_dlc];      ///< Payload bytes (only the first @c dlc bytes are valid).
 };
 
+// ---------------------------------------------------------------------------
+// Concept
+// ---------------------------------------------------------------------------
+
 /**
- * @brief CRTP base for CAN bus controllers.
+ * @brief Concept for a CAN bus controller driver.
  *
- * @tparam Derived Concrete CAN driver (e.g. @c hal::stm32f4::can<can1>).
+ * A conforming type must expose:
+ *  - @c set_baudrate(freq) — configure bus baud rate (call while stopped).
+ *  - @c send(const can_frame&) → @c bool — transmit frame; @c false if TX
+ *    mailboxes are full.
+ *  - @c recv(can_frame&) → @c bool — read oldest frame from RX FIFO; @c false
+ *    if no frame is waiting.
+ *  - @c pending() → @c unsigned — number of frames in the RX FIFO.
  *
- * @par Usage
+ * @par Example
  * @code{.cpp}
- * class my_can : public hal::can<my_can> {
- *   friend class hal::can<my_can>;
- *   void     set_baudrate_impl(freq baud);
- *   bool     send_impl(const can_frame& frame);
- *   bool     recv_impl(can_frame& frame);
- *   unsigned pending_impl();
- * };
+ * template <hal::can_controller Can>
+ * void send_heartbeat(Can& can) {
+ *     can_frame f{ .id = 0x100, .dlc = 1, .data = {0xAA} };
+ *     can.send(f);
+ * }
  * @endcode
  */
-template<typename Derived>
-class can {
-public:
-  /// @brief Set the bus baud rate.
-  /// @param baud Target bus frequency.
-  /// @note Must be called while the controller is stopped.
-  void set_baudrate(this auto& self, freq baud) {
-    self.set_baudrate_impl(baud);
-  }
-
-  /// @brief Transmit a frame.
-  /// @param frame Frame to send.
-  /// @return @c false if the TX mailboxes are full.
-  [[nodiscard]] bool send(this auto& self, const can_frame& frame) {
-    return self.send_impl(frame);
-  }
-
-  /// @brief Receive the oldest frame from the RX FIFO.
-  /// @param[out] frame Destination for the received frame.
-  /// @return @c false if no frame is waiting.
-  [[nodiscard]] bool recv(this auto& self, can_frame& frame) {
-    return self.recv_impl(frame);
-  }
-
-  /// @brief Query the number of frames waiting in the RX FIFO.
-  /// @return Frame count (0 if the FIFO is empty).
-  [[nodiscard]] unsigned pending(this auto& self) {
-    return self.pending_impl();
-  }
-
-protected:
-  can()  = default;
-  ~can() = default;
+template <typename T>
+concept can_controller = requires(T t, can_frame f, freq baud) {
+    t.set_baudrate(baud);
+    { t.send(f) }   -> std::convertible_to<bool>;
+    { t.recv(f) }   -> std::convertible_to<bool>;
+    { t.pending() } -> std::convertible_to<unsigned>;
 };
 
 } // namespace hal

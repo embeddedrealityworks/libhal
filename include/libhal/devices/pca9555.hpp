@@ -1,12 +1,10 @@
 #pragma once
 
-#include <cstdint>
-
 #include <groov/groov.hpp>
 
 #include "../utils/access.hpp"
 #include "../utils/bittypes.hpp"
-#include "i2c_bus.hpp"
+#include "../buses/i2c_bus.hpp"
 
 namespace hal::devices {
 
@@ -128,25 +126,25 @@ using cf1_ = groov::reg<"cf1", std::uint8_t, 0x07, hal::access::rw,
 /**
  * @brief groov device group for the PCA9555 16-bit I2C I/O expander.
  *
- * Bundles all eight register definitions with the @c hal::i2cbus adaptor so
- * that groov read/write operations translate directly to I2C transactions.
+ * Bundles all eight register definitions with the supplied groov-compatible
+ * bus adaptor so that groov read/write operations translate directly to I2C
+ * transactions.
  *
- * @tparam i2cp    Reference to the @c hal::i2c<Derived> bus driver.
- * @tparam address 7-bit I2C device address set by the A0–A2 pins
- *                 (0x20–0x27).
+ * @tparam Bus  groov bus type for the specific I2C bus and device address.
+ *              Use @c hal::i2c_bus<periph, ev, err>::device<addr>.
  *
  * @par Usage
  * @code{.cpp}
- * extern hal::stm32f4::i2c<i2c1> my_i2c;
- * constexpr auto ioexpander = hal::devices::pca9555_t<my_i2c, 0x24>{};
+ * using bus1 = hal::i2c_bus<mcu::stm32::i2c1, "i2c1_ev", "i2c1_err">;
+ * constexpr auto ioexpander = hal::devices::pca9555_t<bus1::device<0x24>>{};
  *
  * // Configure pin 0 as output, set it high:
  * groov::sync_write(ioexpander / ("cf0.cf0"_f = hal::bittypes::bit_enable::DISABLE));
  * groov::sync_write(ioexpander / ("op0.o0"_f  = hal::bittypes::bit_enable::ENABLE));
  * @endcode
  */
-template <auto& i2cp, std::uint8_t address>
-using pca9555_t = groov::group<"pca9555", hal::i2cbus<i2cp, address>,
+template <typename Bus>
+using pca9555_t = groov::group<"pca9555", Bus,
                                pca9555::regs::ip0_, pca9555::regs::ip1_,
                                pca9555::regs::op0_, pca9555::regs::op1_,
                                pca9555::regs::pi0_, pca9555::regs::pi1_,

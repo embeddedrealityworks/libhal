@@ -1,12 +1,10 @@
 #pragma once
 
+#include <concepts>
 #include <cstddef>
 #include <span>
 
-#include <libhal/utils/units.hpp>
-
 namespace hal {
-using namespace hal::units;
 
 // ---------------------------------------------------------------------------
 // Data-frame configuration tag types
@@ -42,59 +40,38 @@ inline constexpr parity_none_t parity_none{};
 inline constexpr parity_even_t parity_even{};
 inline constexpr parity_odd_t  parity_odd{};
 
+// ---------------------------------------------------------------------------
+// Concept
+// ---------------------------------------------------------------------------
+
 /**
- * @brief CRTP base for USART / UART peripherals.
+ * @brief Concept for a USART / UART peripheral driver.
  *
- * @tparam Derived   Concrete USART driver (e.g. @c hal::stm32f4::usart<usart1>).
- * @tparam DataBits  Frame width: @ref data_bits_7_t, @ref data_bits_8_t, or
- *                   @ref data_bits_9_t.
- * @tparam StopBits  Stop-bit count: @ref stop_bits_1_t, @ref stop_bits_2_t,
- *                   etc.
- * @tparam Parity    Parity mode: @ref parity_none_t, @ref parity_even_t, or
- *                   @ref parity_odd_t.
+ * A conforming type must expose:
+ *  - @c write(std::span<const std::byte>) — transmit all bytes (blocking).
+ *  - @c read(std::span<std::byte>) → @c unsigned — read into buffer, return
+ *    actual byte count.
+ *  - @c available() → @c unsigned — bytes waiting in the RX buffer.
  *
- * @par Usage
+ * Frame format (data bits, stop bits, parity) is selected at compile time
+ * via the @ref data_bits_8_t, @ref stop_bits_1_t, @ref parity_none_t tag
+ * types passed to the concrete bus manager.
+ *
+ * @par Example
  * @code{.cpp}
- * class my_uart : public hal::usart<my_uart> {
- *   friend class hal::usart<my_uart>;
- *   void     write_impl(std::span<const std::byte> data);
- *   unsigned read_impl (std::span<std::byte> buf);
- *   unsigned available_impl();
- * };
+ * template <hal::usart_peripheral Uart>
+ * void println(Uart& uart, std::span<const std::byte> msg) {
+ *     uart.write(msg);
+ * }
  * @endcode
  */
-template<typename Derived,
-         typename DataBits = data_bits_8_t,
-         typename StopBits = stop_bits_1_t,
-         typename Parity   = parity_none_t>
-class usart {
-public:
-  using data_bits = DataBits;
-  using stop_bits = StopBits;
-  using parity    = Parity;
-
-  /// @brief Transmit all bytes in @p data (blocking).
-  /// @param data Bytes to transmit.
-  void write(this auto& self, std::span<const std::byte> data) {
-    self.write_impl(data);
-  }
-
-  /// @brief Read up to @p buf.size() bytes from the receive buffer.
-  /// @param buf Destination buffer.
-  /// @return Number of bytes actually read.
-  [[nodiscard]] unsigned read(this auto& self, std::span<std::byte> buf) {
-    return self.read_impl(buf);
-  }
-
-  /// @brief Query the number of bytes waiting in the receive buffer.
-  /// @return Byte count (0 if the buffer is empty).
-  [[nodiscard]] unsigned available(this auto& self) {
-    return self.available_impl();
-  }
-
-protected:
-  usart()  = default;
-  ~usart() = default;
+template <typename T>
+concept usart_peripheral = requires(T t,
+                                    std::span<const std::byte> tx,
+                                    std::span<std::byte>       rx) {
+    t.write(tx);
+    { t.read(rx) }    -> std::convertible_to<unsigned>;
+    { t.available() } -> std::convertible_to<unsigned>;
 };
 
 } // namespace hal
