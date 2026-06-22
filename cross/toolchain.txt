@@ -1,5 +1,5 @@
 [constants]
-toolchain = '/Users/azo/Toolchains/ATfE-22.1.7-Darwin-arm64'
+toolchain = '/Users/azo/Toolchains/ARM-Toolchain'
 sys_root = toolchain / 'lib/clang-runtimes'
 
 [binaries]
